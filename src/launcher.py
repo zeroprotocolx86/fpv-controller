@@ -1,6 +1,6 @@
 """
-FPV Controller — all-in-one
-HTTP + WebSocket + Gamepad + Tray
+FPV Controller
+All-in-one: HTTP + WebSocket + Gamepad + System Tray
 """
 
 import os
@@ -10,6 +10,7 @@ import socket
 import json
 import threading
 import asyncio
+import traceback
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 try:
@@ -37,20 +38,20 @@ else:
 
 HTML_PATH = os.path.join(BASE, "index.html")
 if not os.path.exists(HTML_PATH):
-    alt = os.path.join(os.path.dirname(BASE), "index.html")
-    if os.path.exists(alt):
-        HTML_PATH = alt
+    for d in [os.path.dirname(BASE), BASE]:
+        p = os.path.join(d, "index.html")
+        if os.path.exists(p):
+            HTML_PATH = p
+            break
 
 # ===== CONFIG =====
-DEFAULT_CFG = {"port": 8766, "ws_port": 8765, "auto_open": True}
-
 def load_cfg():
     try:
         p = os.path.join(BASE, "config.json")
         with open(p) as f:
             return json.load(f)
     except:
-        return DEFAULT_CFG.copy()
+        return {"port": 8766, "ws_port": 8765, "auto_open": True}
 
 cfg = load_cfg()
 
@@ -70,25 +71,30 @@ gamepad = None
 if vg:
     try:
         gamepad = vg.VX360Gamepad()
-    except:
-        pass
+    except Exception as e:
+        print(f"[GAMEPAD] {e}")
+
+channels = [1500, 1500, 1500, 1500]
 
 def update_gamepad(ch):
     if not gamepad:
         return
     try:
-        def m(p): return (p - 1500) / 500.0
-        gamepad.left_joystick(x_value=int(m(ch[0]) * 32767), y_value=int(-m(ch[1]) * 32767))
-        gamepad.right_joystick(x_value=int(m(ch[2]) * 32767), y_value=int(-m(ch[3]) * 32767))
+        def m(p):
+            return (p - 1500) / 500.0
+        gamepad.left_joystick(
+            x_value=int(m(ch[0]) * 32767),
+            y_value=int(-m(ch[1]) * 32767)
+        )
+        gamepad.right_joystick(
+            x_value=int(m(ch[2]) * 32767),
+            y_value=int(-m(ch[3]) * 32767)
+        )
         gamepad.update()
     except:
         pass
 
-channels = [1500, 1500, 1500, 1500]
-
 # ===== WEBSOCKET =====
-ws_running = False
-
 async def ws_handler(websocket):
     async for message in websocket:
         try:
@@ -104,12 +110,10 @@ async def ws_server():
         await asyncio.Future()
 
 def run_ws():
-    global ws_running
-    ws_running = True
     try:
         asyncio.run(ws_server())
-    except:
-        ws_running = False
+    except Exception as e:
+        print(f"[WS] {e}")
 
 def start_ws():
     t = threading.Thread(target=run_ws, daemon=True)
@@ -123,68 +127,40 @@ class Handler(SimpleHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
-http_server = None
-
 def run_http():
-    global http_server
     try:
         d = os.path.dirname(HTML_PATH) if os.path.exists(HTML_PATH) else BASE
-        http_server = HTTPServer(("0.0.0.0", cfg["port"]), Handler)
-        http_server.serve_forever()
-    except:
-        pass
+        srv = HTTPServer(("0.0.0.0", cfg["port"]), Handler)
+        srv.serve_forever()
+    except Exception as e:
+        print(f"[HTTP] {e}")
 
-# ===== TRAY =====
-def create_icon(color="#3fb950"):
+# ===== ICON =====
+def make_icon(color="#3fb950"):
     if not HAS_TRAY:
         return None
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([4, 4, 60, 60], radius=12, fill="#1c2128", outline=color, width=3)
-    draw.polygon([(24, 20), (44, 32), (24, 44)], fill=color)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([4, 4, 60, 60], radius=12, fill="#1c2128", outline=color, width=3)
+    d.polygon([(24, 20), (44, 32), (24, 44)], fill=color)
     return img
-
-tray_icon = None
-running = True
-
-def on_open(icon, item):
-    import webbrowser
-    webbrowser.open(f"http://{get_ip()}:{cfg['port']}")
-
-def on_info(icon, item):
-    ip = get_ip()
-    msg = f"Телефон: http://{ip}:{cfg['port']}\n"
-    msg += f"WS: ws://localhost:{cfg['ws_port']}\n\n"
-    msg += "Xbox 360 геймпад: " + ("OK" if gamepad else "немає")
-    if sys.platform == "win32":
-        import tkinter as tk
-        from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
-        messagebox.showinfo("FPV Controller", msg)
-        root.destroy()
-
-def on_quit(icon, item):
-    global running
-    running = False
-    if http_server:
-        http_server.shutdown()
-    if icon:
-        icon.stop()
 
 # ===== MAIN =====
 def main():
-    global tray_icon
-
     ip = get_ip()
     port = cfg["port"]
 
-    print(f"  FPV Controller")
-    print(f"  Телефон: http://{ip}:{port}")
+    print("")
+    print("  FPV Controller")
+    print(f"  Phone: http://{ip}:{port}")
+    print(f"  Gamepad: {'OK' if gamepad else 'NO'}")
+    print("")
 
+    # Start servers
     threading.Thread(target=run_http, daemon=True).start()
     start_ws()
 
+    # Open browser
     if cfg.get("auto_open", True):
         time.sleep(1)
         try:
@@ -193,22 +169,33 @@ def main():
         except:
             pass
 
+    # System tray
     if HAS_TRAY:
+        def on_open(icon, item):
+            import webbrowser
+            webbrowser.open(f"http://{ip}:{port}")
+
+        def on_quit(icon, item):
+            icon.stop()
+
         menu = pystray.Menu(
-            pystray.MenuItem("Відкрити", on_open, default=True),
-            pystray.MenuItem("Інформація", on_info),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Вийти", on_quit)
+            pystray.MenuItem("Open", on_open, default=True),
+            pystray.MenuItem("Quit", on_quit)
         )
-        tray_icon = pystray.Icon("FPV", create_icon(), "FPV Controller", menu)
-        tray_icon.run()
+
+        icon = pystray.Icon("FPV", make_icon(), "FPV Controller", menu)
+        icon.run()
     else:
-        print("Ctrl+C для зупинки")
+        print("No tray - press Ctrl+C to stop")
         try:
-            while running:
+            while True:
                 time.sleep(1)
         except KeyboardInterrupt:
             pass
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        traceback.print_exc()
+        input("Press Enter...")

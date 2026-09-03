@@ -18,8 +18,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#e6edf
 .btn{background:rgba(255,255,255,.06);border:1px solid #30363d;color:#8b949e;padding:6px 10px;border-radius:8px;font-size:16px;cursor:pointer}
 .btn:active{background:rgba(255,255,255,.12)}
 
-.sticks{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;padding:60px 16px 80px}
-.stick-wrap{width:42%;aspect-ratio:1;position:relative;touch-action:none}
+.sticks{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;padding:56px 10px 70px}
+.stick-wrap{width:48%;aspect-ratio:1;position:relative;touch-action:none}
 .base{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.02),transparent 70%);border:2px solid #21262d}
 .cross{position:absolute;background:#21262d}
 .cross.h{width:100%;height:1px;top:50%}
@@ -61,7 +61,6 @@ input[type=range]{width:110px;accent-color:#58a6ff}
   <div style="display:flex;gap:6px">
     <button class="btn" onclick="goFS()">⛶</button>
     <button class="btn" onclick="openCfg()">⚙</button>
-    <button class="btn" onclick="quit()">✕</button>
   </div>
 </div>
 
@@ -76,7 +75,7 @@ input[type=range]{width:110px;accent-color:#58a6ff}
     <div class="base"></div><div class="cross h"></div><div class="cross v"></div>
     <div class="ring" style="inset:18%"></div><div class="ring" style="inset:36%"></div>
     <div class="knob" id="kR"></div>
-    <div class="ch-lbl">PITCH · ROLL</div>
+    <div class="ch-lbl">ROLL · PITCH</div>
   </div>
 </div>
 
@@ -114,7 +113,6 @@ let ws;
 const WS_URL='ws://'+location.hostname+':8765';
 
 function goFS(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen()}
-function quit(){document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#484f58">Закрий вкладку</div>'}
 
 function openCfg(){document.getElementById('cfg').classList.add('show')}
 function closeCfg(){document.getElementById('cfg').classList.remove('show')}
@@ -238,9 +236,9 @@ function init(){
   if(m)C.mode=+m;
   if(C.mode===2){
     sL=new Stick('boxL','kL',0,1,false,false);
-    sR=new Stick('boxR','kR',3,2,false);
+    sR=new Stick('boxR','kR',2,3,false);
   }else{
-    sL=new Stick('boxL','kL',3,2,false);
+    sL=new Stick('boxL','kL',2,3,false);
     sR=new Stick('boxR','kR',0,1,false,false);
   }
 }
