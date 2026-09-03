@@ -41,7 +41,7 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Запустити {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 function InitializeSetup: Boolean;
@@ -65,7 +65,7 @@ begin
       '{' + #13#10 +
       '  "port": 8766,' + #13#10 +
       '  "ws_port": 8765,' + #13#10 +
-      '  "auto_open": true' + #13#10 +
+      '  "auto_open": false' + #13#10 +
       '}', False);
   end;
 end;
