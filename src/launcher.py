@@ -17,7 +17,7 @@ import tempfile
 import traceback
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-CURRENT_VERSION = "1.3.2"
+CURRENT_VERSION = "1.3.3"
 REPO = "zeroprotocolx86/fpv-controller"
 
 try:
@@ -253,6 +253,30 @@ def do_quit():
             pass
     os._exit(0)
 
+def do_uninstall():
+    import shutil
+    remove_lock()
+    if tray_icon:
+        try:
+            tray_icon.stop()
+        except:
+            pass
+    install_dir = BASE
+    try:
+        for f in ["FPV-Controller.exe", "config.json", ".fpv.lock", "unins000.exe", "unins000.dat"]:
+            p = os.path.join(install_dir, f)
+            if os.path.exists(p):
+                os.remove(p)
+    except:
+        pass
+    try:
+        uninstaller = os.path.join(install_dir, "unins000.exe")
+        if os.path.exists(uninstaller):
+            subprocess.Popen([uninstaller, "/SILENT"])
+    except:
+        pass
+    os._exit(0)
+
 # ===== MAIN =====
 def main():
     global tray_icon
@@ -266,6 +290,10 @@ def main():
             except:
                 pass
         remove_lock()
+        return
+
+    if "--uninstall" in sys.argv:
+        do_uninstall()
         return
 
     kill_previous()
@@ -294,6 +322,9 @@ def main():
         def on_restart(icon, item):
             do_quit()
 
+        def on_uninstall(icon, item):
+            do_uninstall()
+
         def on_quit(icon, item):
             do_quit()
 
@@ -302,6 +333,7 @@ def main():
                 pystray.MenuItem("Відкрити", on_open, default=True),
                 pystray.MenuItem("Інформація", on_info),
                 pystray.MenuItem("Перезапустити", on_restart),
+                pystray.MenuItem("Видалити", on_uninstall),
             ]
             if update_tag[0]:
                 items.append(pystray.MenuItem(f"Оновити до {update_tag[0]}", on_update))
