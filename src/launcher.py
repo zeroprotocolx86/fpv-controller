@@ -1,7 +1,6 @@
 """
-FPV Controller — launcher
-Cross-platform: Windows / macOS / Linux
-System tray icon with menu
+FPV Controller — launcher + WS server + HTTP server + Tray
+All-in-one, no subprocess needed
 """
 
 import os
@@ -9,9 +8,26 @@ import sys
 import time
 import socket
 import json
+import asyncio
 import threading
-import subprocess
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+try:
+    import vgamepad as vg
+except ImportError:
+    vg = None
+
+try:
+    import websockets
+except ImportError:
+    websockets = None
+
+try:
+    import pystray
+    from PIL import Image, ImageDraw
+    HAS_TRAY = True
+except ImportError:
+    HAS_TRAY = False
 
 # ===== PATHS =====
 if getattr(sys, 'frozen', False):
@@ -19,15 +35,13 @@ if getattr(sys, 'frozen', False):
 else:
     BASE = os.path.dirname(os.path.abspath(__file__))
 
-# Check for index.html next to exe or in parent
 HTML_PATH = os.path.join(BASE, "index.html")
 if not os.path.exists(HTML_PATH):
-    HTML_PATH = os.path.join(os.path.dirname(BASE), "index.html")
-SERVER_PATH = os.path.join(BASE, "server.py")
-if not os.path.exists(SERVER_PATH):
-    SERVER_PATH = os.path.join(os.path.dirname(BASE), "src", "server.py")
-CONFIG_PATH = os.path.join(BASE, "config.json")
+    alt = os.path.join(os.path.dirname(BASE), "index.html")
+    if os.path.exists(alt):
+        HTML_PATH = alt
 
+CONFIG_PATH = os.path.join(BASE, "config.json")
 DEFAULT_CFG = {"port": 8766, "ws_port": 8765, "auto_open": True}
 
 def load_cfg():
@@ -37,10 +51,10 @@ def load_cfg():
     except:
         return DEFAULT_CFG.copy()
 
-def save_cfg(cfg):
+def save_cfg(c):
     try:
         with open(CONFIG_PATH, "w") as f:
-            json.dump(cfg, f, indent=2)
+            json.dump(c, f, indent=2)
     except:
         pass
 
@@ -57,72 +71,112 @@ def get_ip():
     except:
         return "localhost"
 
-# ===== HTTP SERVER =====
-class Handler(SimpleHTTPRequestHandler):
-    def __init__(self, *a, **kw):
-        super().__init__(*a, directory=os.path.dirname(HTML_PATH), **kw)
-    def log_message(self, *a):
+# ===== GAMEPAD =====
+gamepad = None
+if vg:
+    try:
+        gamepad = vg.VX360Gamepad()
+    except:
         pass
 
-http_server = None
-ws_proc = None
-tray_icon = None
-running = True
+def map_axis(pwm):
+    return (pwm - 1500) / 500.0
 
-def run_http():
-    global http_server
+def update_gamepad(channels):
+    if not gamepad:
+        return
     try:
-        http_server = HTTPServer(("0.0.0.0", cfg["port"]), Handler)
-        http_server.serve_forever()
-    except Exception as e:
-        print(f"[HTTP] Error: {e}")
+        yaw   = map_axis(channels[0])
+        thr   = map_axis(channels[1])
+        pitch = map_axis(channels[2])
+        roll  = map_axis(channels[3])
+        gamepad.left_joystick(x_value=int(yaw * 32767), y_value=int(-thr * 32767))
+        gamepad.right_joystick(x_value=int(roll * 32767), y_value=int(-pitch * 32767))
+        gamepad.update()
+    except:
+        pass
 
-def start_ws():
-    global ws_proc
+channels = [1500, 1500, 1500, 1500]
+ws_clients = set()
+ws_running = False
+
+# ===== WEBSOCKET =====
+async def ws_handler(websocket):
+    ws_clients.add(websocket)
     try:
-        creation_flags = 0
-        if sys.platform == "win32":
-            creation_flags = subprocess.CREATE_NO_WINDOW
-        ws_proc = subprocess.Popen(
-            [sys.executable, SERVER_PATH],
-            cwd=os.path.dirname(SERVER_PATH),
-            creationflags=creation_flags,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        print("[WS] Started")
-    except Exception as e:
-        print(f"[WS] Error: {e}")
-
-def stop_ws():
-    global ws_proc
-    if ws_proc:
-        try:
-            ws_proc.terminate()
-            ws_proc.wait(timeout=3)
-        except:
+        async for message in websocket:
             try:
-                ws_proc.kill()
+                msg = json.loads(message)
+                if msg.get("type") == "channels" and isinstance(msg.get("ch"), list):
+                    channels[:] = [max(1000, min(2000, v)) for v in msg["ch"]]
+                    update_gamepad(channels)
             except:
                 pass
-        ws_proc = None
-        print("[WS] Stopped")
+    except:
+        pass
+    finally:
+        ws_clients.discard(websocket)
+
+async def ws_main():
+    global ws_running
+    ws_running = True
+    try:
+        async with websockets.serve(ws_handler, "0.0.0.0", cfg["ws_port"]):
+            await asyncio.Future()
+    except Exception as e:
+        print(f"[WS] Error: {e}")
+        ws_running = False
+
+ws_thread = None
+ws_loop = None
+
+def start_ws():
+    global ws_thread, ws_loop, ws_running
+    if ws_running:
+        return
+    def run():
+        global ws_loop, ws_running
+        ws_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(ws_loop)
+        ws_running = True
+        try:
+            ws_loop.run_until_complete(ws_main())
+        except:
+            ws_running = False
+    ws_thread = threading.Thread(target=run, daemon=True)
+    ws_thread.start()
+
+def stop_ws():
+    global ws_running, ws_loop
+    ws_running = False
+    if ws_loop:
+        ws_loop.call_soon_threadsafe(ws_loop.stop)
 
 def restart():
     stop_ws()
     time.sleep(0.5)
     start_ws()
 
-# ===== TRAY ICON (pystray) =====
-try:
-    import pystray
-    from PIL import Image, ImageDraw
-    HAS_TRAY = True
-except ImportError:
-    HAS_TRAY = False
-    print("[TRAY] pystray not installed, running without tray icon")
-    print("[TRAY] Install: pip install pystray Pillow")
+# ===== HTTP SERVER =====
+class Handler(SimpleHTTPRequestHandler):
+    def __init__(self, *a, **kw):
+        d = os.path.dirname(HTML_PATH) if os.path.exists(HTML_PATH) else BASE
+        super().__init__(*a, directory=d, **kw)
+    def log_message(self, *a):
+        pass
 
+http_server = None
+
+def run_http():
+    global http_server
+    try:
+        d = os.path.dirname(HTML_PATH) if os.path.exists(HTML_PATH) else BASE
+        http_server = HTTPServer(("0.0.0.0", cfg["port"]), Handler)
+        http_server.serve_forever()
+    except Exception as e:
+        print(f"[HTTP] Error: {e}")
+
+# ===== TRAY =====
 def create_icon(color="#3fb950"):
     if not HAS_TRAY:
         return None
@@ -132,11 +186,13 @@ def create_icon(color="#3fb950"):
     draw.polygon([(24, 20), (44, 32), (24, 44)], fill=color)
     return img
 
+tray_icon = None
+running = True
+
 def on_open(icon, item):
     ip = get_ip()
-    url = f"http://{ip}:{cfg['port']}"
     import webbrowser
-    webbrowser.open(url)
+    webbrowser.open(f"http://{ip}:{cfg['port']}")
 
 def on_restart(icon, item):
     restart()
@@ -162,13 +218,16 @@ def on_quit(icon, item):
     if icon:
         icon.stop()
 
-def on_settings(icon, item):
+def on_info(icon, item):
     ip = get_ip()
     msg = f"FPV Controller\n\n"
-    msg += f"Phone: http://{ip}:{cfg['port']}\n"
+    msg += f"Телефон: http://{ip}:{cfg['port']}\n"
     msg += f"WS: ws://localhost:{cfg['ws_port']}\n\n"
-    msg += f"Xbox 360 gamepad active\n"
-    msg += f"Open flight sim to detect gamepad"
+    if gamepad:
+        msg += "Xbox 360 геймпад активний\n"
+    else:
+        msg += "Геймпад: встанови vgamepad\n"
+    msg += "Відкрий flight sim"
 
     if sys.platform == "win32":
         import tkinter as tk
@@ -188,11 +247,12 @@ def main():
     port = cfg["port"]
 
     print("")
-    print("  ╔═══════════════════════════════════╗")
-    print("  ║        FPV CONTROLLER             ║")
-    print("  ╚═══════════════════════════════════╝")
-    print(f"  Phone: http://{ip}:{port}")
-    print("  Xbox 360 gamepad active")
+    print("  FPV Controller")
+    print(f"  Телефон: http://{ip}:{port}")
+    if gamepad:
+        print("  Xbox 360 геймпад: OK")
+    else:
+        print("  Геймпад: встанови vgamepad")
     print("")
 
     # Start HTTP
@@ -214,14 +274,14 @@ def main():
     # Tray icon
     if HAS_TRAY:
         menu = pystray.Menu(
-            pystray.MenuItem("Open in browser", on_open, default=True),
-            pystray.MenuItem("Settings", on_settings),
+            pystray.MenuItem("Відкрити в браузері", on_open, default=True),
+            pystray.MenuItem("Інформація", on_info),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Start WS", on_start),
-            pystray.MenuItem("Stop WS", on_stop),
-            pystray.MenuItem("Restart WS", on_restart),
+            pystray.MenuItem("Запустити WS", on_start),
+            pystray.MenuItem("Зупинити WS", on_stop),
+            pystray.MenuItem("Перезапустити WS", on_restart),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Quit", on_quit)
+            pystray.MenuItem("Вийти", on_quit)
         )
 
         tray_icon = pystray.Icon(
@@ -233,8 +293,7 @@ def main():
 
         tray_icon.run()
     else:
-        # No tray — just wait
-        print("Press Ctrl+C to stop")
+        print("Натисни Ctrl+C для зупинки")
         try:
             while running:
                 time.sleep(1)
