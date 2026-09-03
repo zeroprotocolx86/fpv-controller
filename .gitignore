@@ -1,9 +1,7 @@
-__pycache__/
-*.pyc
-*.pyo
 build/
+build2/
 dist/
+dist2/
 *.spec
-*.egg-info/
-.env
-config.json
+src/.fpv.lock
+__pycache__/
