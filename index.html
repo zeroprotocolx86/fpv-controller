@@ -2,350 +2,281 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Тривога України — Мапа повітряних тривог</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>FPV Controller</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0e17;color:#e0e0e0;overflow:hidden;height:100vh}
-#map{width:100%;height:100vh;z-index:1}
-.header{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(10,14,23,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08);padding:10px 20px;display:flex;align-items:center;gap:16px}
-.header h1{font-size:18px;font-weight:700;color:#fff;white-space:nowrap}
-.header h1 span{color:#ef4444}
-.status-pill{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
-.status-pill.active{background:rgba(239,68,68,.15);color:#ef4444;animation:pulse 2s infinite}
-.status-pill.clear{background:rgba(34,197,94,.15);color:#22c55e}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
-.stat{font-size:12px;color:#94a3b8}
-.stat b{color:#fff}
-.update-time{margin-left:auto;font-size:11px;color:#64748b}
-.legend{position:fixed;bottom:20px;left:20px;z-index:1000;background:rgba(10,14,23,.92);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 18px;font-size:12px}
-.legend-item{display:flex;align-items:center;gap:8px;margin:6px 0}
-.legend-color{width:16px;height:16px;border-radius:3px;border:1px solid rgba(255,255,255,.1)}
-.alert-list{position:fixed;top:60px;right:10px;z-index:1000;background:rgba(10,14,23,.92);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;width:300px;max-height:calc(100vh - 80px);overflow-y:auto}
-.alert-list h3{font-size:13px;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
-.alert-item{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;font-size:12px;cursor:pointer;transition:background .2s}
-.alert-item:hover{background:rgba(239,68,68,.15)}
-.alert-dot{width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;animation:pulse 1.5s infinite}
-.alert-name{flex:1;color:#e0e0e0}
-.alert-time{color:#64748b;font-size:11px;white-space:nowrap}
-.no-alerts{text-align:center;color:#22c55e;padding:20px;font-size:13px}
-.sidebar{position:fixed;top:60px;left:10px;z-index:1000;background:rgba(10,14,23,.92);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;width:260px}
-.sidebar h3{font-size:13px;color:#94a3b8;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
-.threat-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px}
-.threat-row:last-child{border:none}
-.threat-icon{font-size:16px;margin-right:6px}
-.threat-count{font-weight:700;color:#fff}
-.siren-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:rgba(239,68,68,.08);pointer-events:none;opacity:0;transition:opacity .3s}
-.siren-overlay.on{opacity:1;animation:sirenFlash 1s infinite}
-@keyframes sirenFlash{0%,100%{opacity:0}50%{opacity:1}}
-.leaflet-container{background:#0a0e17!important}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#e6edf3;font-family:system-ui,sans-serif}
+
+.hdr{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(13,17,23,.95);backdrop-filter:blur(10px);border-bottom:1px solid #21262d}
+.conn{display:flex;align-items:center;gap:6px;font-size:11px}
+.dot{width:8px;height:8px;border-radius:50%;background:#f85149;transition:background .3s}
+.dot.on{background:#3fb950}
+.lbl{font-size:14px;font-weight:700;color:#fff}
+.btn{background:rgba(255,255,255,.06);border:1px solid #30363d;color:#8b949e;padding:6px 10px;border-radius:8px;font-size:16px;cursor:pointer}
+.btn:active{background:rgba(255,255,255,.12)}
+
+.sticks{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;padding:60px 16px 80px}
+.stick-wrap{width:42%;aspect-ratio:1;position:relative;touch-action:none}
+.base{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.02),transparent 70%);border:2px solid #21262d}
+.cross{position:absolute;background:#21262d}
+.cross.h{width:100%;height:1px;top:50%}
+.cross.v{width:1px;height:100%;left:50%}
+.ring{position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.04)}
+.knob{position:absolute;width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#484f58,#1c2128);border:2px solid #484f58;box-shadow:0 2px 16px rgba(0,0,0,.5);transform:translate(-50%,-50%);z-index:10;pointer-events:none}
+.knob.on{border-color:#58a6ff}
+.knob::after{content:'';position:absolute;width:8px;height:8px;border-radius:50%;background:#6e7681;top:7px;left:50%;transform:translateX(-50%)}
+.knob.on::after{background:#58a6ff}
+.ch-lbl{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:9px;color:#484f58;white-space:nowrap}
+
+.bot{position:fixed;bottom:0;left:0;right:0;z-index:100;display:flex;justify-content:space-around;padding:8px 12px;background:rgba(13,17,23,.95);backdrop-filter:blur(10px);border-top:1px solid #21262d}
+.vg{text-align:center;min-width:60px}
+.vg small{font-size:8px;color:#484f58;text-transform:uppercase;letter-spacing:1px}
+.vg .n{display:block;font-size:15px;font-weight:700;font-family:monospace}
+.c1{color:#f85149}.c2{color:#58a6ff}.c3{color:#3fb950}.c4{color:#d29922}
+
+.modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.92);backdrop-filter:blur(20px);padding:20px;padding-top:max(20px,env(safe-area-inset-top));overflow-y:auto}
+.modal.show{display:block}
+.modal h2{font-size:15px;margin-bottom:12px;color:#fff}
+.rw{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #21262d}
+.rw label{font-size:13px;color:#c9d1d9}
+.rw .vv{color:#58a6ff;font-weight:600;font-size:13px}
+input[type=range]{width:110px;accent-color:#58a6ff}
+.x{position:absolute;top:14px;right:14px;background:none;border:none;color:#8b949e;font-size:22px;padding:8px}
+.mbtns{display:flex;gap:8px;margin-top:10px}
+.mbtns button{flex:1;padding:10px;border-radius:8px;font-size:12px;border:1px solid #30363d;background:#161b22;color:#8b949e}
+.mbtns button.a{border-color:#3fb950;color:#3fb950;background:rgba(63,185,80,.1)}
+
+.hint{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;font-size:13px;color:#58a6ff;pointer-events:none;opacity:0;transition:opacity .5s;text-align:center}
+.hint.show{opacity:1}
 </style>
 </head>
 <body>
 
-<div class="siren-overlay" id="sirenOverlay"></div>
-
-<div class="header">
-  <h1>TRIVOHA<span>.</span>UA</h1>
-  <div class="status-pill" id="statusPill">
-    <span id="statusDot"></span>
-    <span id="statusText">Завантаження...</span>
+<div class="hdr">
+  <div class="lbl">FPV</div>
+  <div class="conn"><div class="dot" id="cd"></div><span id="ct">...</span></div>
+  <div style="display:flex;gap:6px">
+    <button class="btn" onclick="goFS()">⛶</button>
+    <button class="btn" onclick="openCfg()">⚙</button>
+    <button class="btn" onclick="quit()">✕</button>
   </div>
-  <div class="stat">Активних тривог: <b id="alertCount">0</b></div>
-  <div class="stat">Загроз: <b id="threatCount">0</b></div>
-  <div class="update-time" id="updateTime">—</div>
 </div>
 
-<div class="sidebar" id="sidebar">
-  <h3>Статистика загроз</h3>
-  <div id="threatStats">Завантаження...</div>
+<div class="sticks">
+  <div class="stick-wrap" id="boxL">
+    <div class="base"></div><div class="cross h"></div><div class="cross v"></div>
+    <div class="ring" style="inset:18%"></div><div class="ring" style="inset:36%"></div>
+    <div class="knob" id="kL"></div>
+    <div class="ch-lbl">THR · YAW</div>
+  </div>
+  <div class="stick-wrap" id="boxR">
+    <div class="base"></div><div class="cross h"></div><div class="cross v"></div>
+    <div class="ring" style="inset:18%"></div><div class="ring" style="inset:36%"></div>
+    <div class="knob" id="kR"></div>
+    <div class="ch-lbl">PITCH · ROLL</div>
+  </div>
 </div>
 
-<div class="alert-list" id="alertList">
-  <h3>Активні тривоги</h3>
-  <div id="alertItems">Завантаження...</div>
+<div class="bot">
+  <div class="vg"><small>YAW</small><span class="n c1" id="v1">1500</span></div>
+  <div class="vg"><small>THR</small><span class="n c2" id="v2">1500</span></div>
+  <div class="vg"><small>PIT</small><span class="n c3" id="v3">1500</span></div>
+  <div class="vg"><small>ROL</small><span class="n c4" id="v4">1500</span></div>
 </div>
 
-<div class="legend">
-  <div class="legend-item"><div class="legend-color" style="background:#ef4444"></div>Активна тривога</div>
-  <div class="legend-item"><div class="legend-color" style="background:#f59e0b"></div>Попередження</div>
-  <div class="legend-item"><div class="legend-color" style="background:#1e293b"></div>Без тривоги</div>
-  <div class="legend-item"><div class="legend-color" style="background:#3b82f6"></div>Дрон / Ракета</div>
+<div class="modal" id="cfg">
+  <button class="x" onclick="closeCfg()">✕</button>
+  <h2>Налаштування</h2>
+  <div class="rw"><label>Expo</label><span class="vv" id="eV">0.50</span></div>
+  <input type="range" id="eR" min="0" max="1" step="0.05" value="0.50">
+  <div class="rw"><label>Rate</label><span class="vv" id="rV">1.00</span></div>
+  <input type="range" id="rR" min="0.3" max="2" step="0.05" value="1.00">
+  <div class="rw"><label>Deadband</label><span class="vv" id="dV">3%</span></div>
+  <input type="range" id="dR" min="0" max="15" step="1" value="3">
+  <div class="rw"><label>Smoothing</label><span class="vv" id="sV">2</span></div>
+  <input type="range" id="sR" min="0" max="10" step="1" value="2">
+  <h2 style="margin-top:16px">Режим</h2>
+  <div class="mbtns">
+    <button id="m2" class="a" onclick="setM(2)">Mode 2</button>
+    <button id="m1" onclick="setM(1)">Mode 1</button>
+  </div>
 </div>
 
-<div id="map"></div>
+<div class="hint" id="hint">Тримай пальці на джойстиках</div>
 
 <script>
-const API_BASE = 'https://tryvoha.online/api/v1';
-const REFRESH_INTERVAL = 30000;
-const UKRAINE_CENTER = [48.3794, 31.1656];
-const UKRAINE_ZOOM = 6;
+const C={expo:.5,rate:1,dead:3,smooth:2,mode:2};
+const ch=[1500,1500,1500,1500];
+let ws;
+const WS_URL='ws://'+location.hostname+':8765';
 
-// Oblast slug -> center coordinates for drone/missile markers
-const OBLAST_CENTERS = {
-  'vinnicka-oblast': [49.2331, 28.4682],
-  'volinska-oblast': [50.7472, 25.3254],
-  'dnipropetrovska': [48.4647, 35.0462],
-  'donecka-oblast': [48.0159, 37.8029],
-  'zhitomirska-oblast': [50.2547, 28.6587],
-  'zakarpatska-oblast': [48.6208, 22.2879],
-  'zaporizka-oblast': [47.8388, 35.1396],
-  'ivano-frankivska-oblast': [48.9226, 24.7111],
-  'kyivska': [50.4501, 30.5234],
-  'kirovogradska-oblast': [48.5079, 32.2623],
-  'luganska-oblast': [48.5740, 39.3078],
-  'lvivska': [49.8397, 24.0297],
-  'kyiv': [50.4501, 30.5234],
-  'mikolayivska-oblast': [46.9750, 31.9946],
-  'odeska': [46.4825, 30.7233],
-  'poltavska-oblast': [49.5883, 34.5514],
-  'rivnenska-oblast': [50.6199, 26.2516],
-  'sumska-oblast': [50.9077, 34.7981],
-  'ternopilska-oblast': [49.5535, 25.5948],
-  'xarkivska-oblast': [49.9935, 36.2304],
-  'xersonska-oblast': [46.6354, 32.6169],
-  'xmelnycka-oblast': [49.4230, 26.9871],
-  'cherkaska-oblast': [49.4444, 32.0598],
-  'cernivecka-oblast': [48.2920, 25.9358],
-  'cernigivska-oblast': [51.4982, 31.2893]
-};
+function goFS(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen()}
+function quit(){document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#484f58">Закрий вкладку</div>'}
 
-// Initialize map
-const map = L.map('map', {
-  center: UKRAINE_CENTER,
-  zoom: UKRAINE_ZOOM,
-  zoomControl: false,
-  attributionControl: false
-});
+function openCfg(){document.getElementById('cfg').classList.add('show')}
+function closeCfg(){document.getElementById('cfg').classList.remove('show')}
+function setM(m){C.mode=m;document.getElementById('m2').className=m===2?'a':'';document.getElementById('m1').className=m===1?'a':'';localStorage.setItem('fpv_m',m)}
 
-L.control.zoom({position:'bottomright'}).addTo(map);
+document.getElementById('eR').oninput=function(){C.expo=+this.value;document.getElementById('eV').textContent=C.expo.toFixed(2)};
+document.getElementById('rR').oninput=function(){C.rate=+this.value;document.getElementById('rV').textContent=C.rate.toFixed(2)};
+document.getElementById('dR').oninput=function(){C.dead=+this.value;document.getElementById('dV').textContent=C.dead+'%'};
+document.getElementById('sR').oninput=function(){C.smooth=+this.value;document.getElementById('sV').textContent=C.smooth};
 
-// Dark tiles
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  maxZoom: 18
-}).addTo(map);
-
-// Layer groups
-let alertLayer = L.layerGroup().addTo(map);
-let droneLayer = L.layerGroup().addTo(map);
-let regionLabels = L.layerGroup().addTo(map);
-
-// Ukraine GeoJSON (simplified)
-let ukraineGeo = null;
-let alertSlugs = new Set();
-
-// Fetch Ukraine boundaries
-async function loadUkraineGeo() {
-  try {
-    const resp = await fetch('https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/ukraine.geojson');
-    ukraineGeo = await resp.json();
-    drawRegions({});
-  } catch(e) {
-    console.warn('GeoJSON load failed, using circles fallback');
+class Stick{
+  constructor(boxId,knobId,chX,chY,invY,springY){
+    this.box=document.getElementById(boxId);
+    this.knob=document.getElementById(knobId);
+    this.chX=chX;
+    this.chY=chY;
+    this.invY=invY||false;
+    this.springY=springY!==false;
+    this.rawX=0;
+    this.rawY=0;
+    this.smX=0;
+    this.smY=0;
+    this.touching=false;
+    this.tid=-1;
+    this._bind();
   }
-}
-
-function getOblastSlug(name) {
-  const map = {
-    'Vinnytsia':'vinnicka-oblast','Volyn':'volinska-oblast','Dnipropetrovsk':'dnipropetrovska',
-    'Donetsk':'donecka-oblast','Zhytomyr':'zhitomirska-oblast','Zakarpattia':'zakarpatska-oblast',
-    'Zaporizhzhia':'zaporizka-oblast','Ivano-Frankivsk':'ivano-frankivska-oblast',
-    'Kyiv':'kyivska','Kirovohrad':'kirovogradska-oblast','Luhansk':'luganska-oblast',
-    'Lviv':'lvivska','Mykolaiv':'mikolayivska-oblast','Odesa':'odeska',
-    'Poltava':'poltavska-oblast','Rivne':'rivnenska-oblast','Sumy':'sumska-oblast',
-    'Ternopil':'ternopilska-oblast','Kharkiv':'xarkivska-oblast','Kherson':'xersonska-oblast',
-    'Khmelnytskyi':'xmelnycka-oblast','Cherkasy':'cherkaska-oblast',
-    'Chernivtsi':'cernivecka-oblast','Chernihiv':'cernigivska-oblast','Sevastopol':'krim'
-  };
-  for (const [key, slug] of Object.entries(map)) {
-    if (name.includes(key)) return slug;
+  _bind(){
+    const el=this.box;
+    el.addEventListener('touchstart',(e)=>{e.preventDefault();this._onDown(e)},{passive:false});
+    el.addEventListener('touchmove',(e)=>{e.preventDefault();this._onMove(e)},{passive:false});
+    el.addEventListener('touchend',(e)=>{this._onUp(e)});
+    el.addEventListener('touchcancel',(e)=>{this._onUp(e)});
   }
-  return null;
-}
-
-function drawRegions(alertsData) {
-  if (!ukraineGeo) return;
-  alertLayer.clearLayers();
-
-  const activeSlugs = new Set();
-  if (alertsData.alerts) {
-    alertsData.alerts.forEach(a => activeSlugs.add(a.slug));
-  }
-
-  L.geoJSON(ukraineGeo, {
-    style: feature => {
-      const name = feature.properties.name || '';
-      const slug = getOblastSlug(name);
-      const isActive = slug && (activeSlugs.has(slug) || alertsData.alerts?.some(a => a.oblast_slug === slug));
-      return {
-        fillColor: isActive ? '#ef4444' : '#1e293b',
-        fillOpacity: isActive ? 0.45 : 0.25,
-        color: isActive ? '#ef4444' : '#334155',
-        weight: isActive ? 2 : 1,
-        opacity: isActive ? 0.9 : 0.4
-      };
-    },
-    onEachFeature: (feature, layer) => {
-      const name = feature.properties.name || 'Unknown';
-      const slug = getOblastSlug(name);
-      const isActive = slug && (activeSlugs.has(slug) || alertsData.alerts?.some(a => a.oblast_slug === slug));
-      layer.bindTooltip(`<b>${name}</b><br>${isActive ? '🔴 ТРИВОГА' : '🟢 Спокійно'}`, {
-        className: 'dark-tooltip'
-      });
-      layer.on('click', () => {
-        if (slug) {
-          const center = layer.getBounds().getCenter();
-          map.setView(center, 8);
-        }
-      });
+  _getTouch(e){
+    for(let i=0;i<e.changedTouches.length;i++){
+      if(e.changedTouches[i].identifier===this.tid)return e.changedTouches[i];
     }
-  }).addTo(alertLayer);
-}
-
-function drawDroneMarkers(alertsData) {
-  droneLayer.clearLayers();
-  if (!alertsData.alerts) return;
-
-  alertsData.alerts.forEach(alert => {
-    const coords = OBLAST_CENTERS[alert.oblast_slug] || OBLAST_CENTERS[alert.slug];
-    if (!coords) return;
-
-    // Random offset for visual separation
-    const lat = coords[0] + (Math.random() - 0.5) * 0.8;
-    const lng = coords[1] + (Math.random() - 0.5) * 0.8;
-
-    const marker = L.circleMarker([lat, lng], {
-      radius: 6,
-      fillColor: '#3b82f6',
-      fillOpacity: 0.9,
-      color: '#60a5fa',
-      weight: 2,
-      opacity: 0.8
-    });
-
-    const startTime = new Date(alert.started_at);
-    const now = new Date();
-    const mins = Math.floor((now - startTime) / 60000);
-
-    marker.bindPopup(`
-      <div style="font-family:system-ui;color:#e0e0e0;background:#1e293b;padding:12px;border-radius:8px;min-width:200px">
-        <b style="font-size:14px">⚠️ ${alert.name_uk || alert.name_en}</b><br>
-        <span style="color:#94a3b8">${alert.name_en || ''}</span><br><br>
-        <span style="color:#ef4444">Тривога: ${mins} хв</span><br>
-        <span style="color:#64748b">Початок: ${startTime.toLocaleTimeString('uk-UA')}</span><br>
-        <span style="color:#64748b">Тип: ${alert.type}</span>
-      </div>
-    `, {className: 'dark-popup'});
-
-    droneLayer.addLayer(marker);
-  });
-}
-
-function updateAlertList(alertsData) {
-  const container = document.getElementById('alertItems');
-  const count = document.getElementById('alertCount');
-  const pill = document.getElementById('statusPill');
-  const dot = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
-
-  if (!alertsData.alerts || alertsData.alerts.length === 0) {
-    container.innerHTML = '<div class="no-alerts">🟢 Немає активних тривог</div>';
-    count.textContent = '0';
-    pill.className = 'status-pill clear';
-    dot.textContent = '🟢';
-    text.textContent = 'Спокійно';
-    document.getElementById('sirenOverlay').classList.remove('on');
-    return;
+    return null;
   }
-
-  // Group by oblast
-  const byOblast = {};
-  alertsData.alerts.forEach(a => {
-    const ob = a.oblast_slug || a.slug;
-    if (!byOblast[ob]) byOblast[ob] = [];
-    byOblast[ob].push(a);
-  });
-
-  const oblastCount = Object.keys(byOblast).length;
-  count.textContent = oblastCount;
-  pill.className = 'status-pill active';
-  dot.textContent = '🔴';
-  text.textContent = `ТРИВОГА — ${oblastCount} областей`;
-  document.getElementById('sirenOverlay').classList.add('on');
-
-  let html = '';
-  alertsData.alerts.forEach(a => {
-    const start = new Date(a.started_at);
-    const mins = Math.floor((Date.now() - start) / 60000);
-    html += `<div class="alert-item" onclick="focusAlert('${a.oblast_slug || a.slug}')">
-      <div class="alert-dot"></div>
-      <div class="alert-name">${a.name_uk || a.name_en}</div>
-      <div class="alert-time">${mins}хв</div>
-    </div>`;
-  });
-  container.innerHTML = html;
-}
-
-function updateStats(alertsData) {
-  const container = document.getElementById('threatStats');
-  if (!alertsData.alerts) {
-    container.innerHTML = '<div style="color:#64748b">Немає даних</div>';
-    return;
+  _onDown(e){
+    if(this.touching)return;
+    this.touching=true;
+    this.tid=e.changedTouches[0].identifier;
+    this.knob.classList.add('on');
+    this._calc(e.changedTouches[0]);
   }
-
-  const byType = {state:0, district:0, community:0};
-  alertsData.alerts.forEach(a => {
-    byType[a.type] = (byType[a.type] || 0) + 1;
-  });
-
-  document.getElementById('threatCount').textContent = alertsData.alerts.length;
-
-  container.innerHTML = `
-    <div class="threat-row"><span><span class="threat-icon">🏛️</span>Області</span><span class="threat-count">${byType.state || 0}</span></div>
-    <div class="threat-row"><span><span class="threat-icon">📍</span>Райони</span><span class="threat-count">${byType.district || 0}</span></div>
-    <div class="threat-row"><span><span class="threat-icon">🏘️</span>Громади</span><span class="threat-count">${byType.community || 0}</span></div>
-    <div class="threat-row"><span><span class="threat-icon">🕐</span>Оновлення</span><span class="threat-count" style="font-size:11px">${new Date().toLocaleTimeString('uk-UA')}</span></div>
-  `;
-}
-
-function focusAlert(slug) {
-  const coords = OBLAST_CENTERS[slug];
-  if (coords) {
-    map.setView(coords, 8, {animate: true});
+  _onMove(e){
+    if(!this.touching)return;
+    const t=this._getTouch(e);
+    if(t)this._calc(t);
+  }
+  _onUp(e){
+    if(!this.touching)return;
+    const t=this._getTouch(e);
+    if(!t)return;
+    this.touching=false;
+    this.tid=-1;
+    this.knob.classList.remove('on');
+    this._spring();
+  }
+  _calc(touch){
+    const r=this.box.getBoundingClientRect();
+    const cx=r.left+r.width/2;
+    const cy=r.top+r.height/2;
+    const maxR=r.width/2-27;
+    let dx=touch.clientX-cx;
+    let dy=touch.clientY-cy;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>maxR){dx=dx/dist*maxR;dy=dy/dist*maxR}
+    this.rawX=dx/maxR;
+    this.rawY=-dy/maxR;
+    this._draw();
+    this._send();
+  }
+  _draw(){
+    this.knob.style.left=(50+this.rawX*50)+'%';
+    this.knob.style.top=(50-this.rawY*50)+'%';
+  }
+  _spring(){
+    const step=()=>{
+      if(this.touching)return;
+      this.rawX*=.8;
+      if(this.springY)this.rawY*=.8;
+      if(Math.abs(this.rawX)<.003)this.rawX=0;
+      if(this.springY&&Math.abs(this.rawY)<.003)this.rawY=0;
+      this._draw();
+      this._send();
+      const doneX=Math.abs(this.rawX)<.003;
+      const doneY=!this.springY||Math.abs(this.rawY)<.003;
+      if(!doneX||!doneY)requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  _send(){
+    let x=this.rawX;
+    let y=this.rawY;
+    const e=C.expo;
+    if(x!==0)x=Math.sign(x)*(Math.abs(x)+e*Math.abs(x)*(1-Math.abs(x)*Math.abs(x)));
+    if(y!==0)y=Math.sign(y)*(Math.abs(y)+e*Math.abs(y)*(1-Math.abs(y)*Math.abs(y)));
+    x*=C.rate;y*=C.rate;
+    x=Math.max(-1,Math.min(1,x));
+    y=Math.max(-1,Math.min(1,y));
+    const d=C.dead/100;
+    if(Math.abs(x)<d)x=0;else x=Math.sign(x)*(Math.abs(x)-d)/(1-d);
+    if(Math.abs(y)<d)y=0;else y=Math.sign(y)*(Math.abs(y)-d)/(1-d);
+    const s=C.smooth/100;
+    this.smX+=(x-this.smX)*(1-s);
+    this.smY+=(y-this.smY)*(1-s);
+    let fy=this.smY;
+    if(this.invY)fy=-fy;
+    ch[this.chX]=Math.round(Math.max(1000,Math.min(2000,1500+this.smX*500)));
+    ch[this.chY]=Math.round(Math.max(1000,Math.min(2000,1500+fy*500)));
+    upd();
+    send();
   }
 }
 
-async function fetchAlerts() {
-  try {
-    const resp = await fetch(`${API_BASE}/alerts`);
-    const data = await resp.json();
-    document.getElementById('updateTime').textContent = `Оновлено: ${new Date().toLocaleTimeString('uk-UA')}`;
-    drawRegions(data);
-    drawDroneMarkers(data);
-    updateAlertList(data);
-    updateStats(data);
-  } catch(e) {
-    console.error('API error:', e);
-    document.getElementById('updateTime').textContent = 'Помилка завантаження';
+let sL,sR;
+function init(){
+  const m=localStorage.getItem('fpv_m');
+  if(m)C.mode=+m;
+  if(C.mode===2){
+    sL=new Stick('boxL','kL',0,1,false,false);
+    sR=new Stick('boxR','kR',3,2,false);
+  }else{
+    sL=new Stick('boxL','kL',3,2,false);
+    sR=new Stick('boxR','kR',0,1,false,false);
   }
 }
 
-// Init
-loadUkraineGeo();
-fetchAlerts();
-setInterval(fetchAlerts, REFRESH_INTERVAL);
+function upd(){
+  document.getElementById('v1').textContent=ch[0];
+  document.getElementById('v2').textContent=ch[1];
+  document.getElementById('v3').textContent=ch[2];
+  document.getElementById('v4').textContent=ch[3];
+}
 
-// Sound notification for new alerts
-let lastAlertCount = 0;
-setInterval(() => {
-  const count = parseInt(document.getElementById('alertCount').textContent) || 0;
-  if (count > lastAlertCount && lastAlertCount >= 0) {
-    try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVggoKIaF9RXH+FjHpnT0Vyf4aLd2FTUWd7hYd0ZlJLbH2Fh3NlUUdsfISGc2VRR2t9hIZzZVFIa32EhXJkUEdqfYSEc2RQR2p9hIRyZF workaround for beep`).play(); } catch(e) {}
-  }
-  lastAlertCount = count;
-}, 2000);
+function connect(){
+  ws=new WebSocket(WS_URL);
+  ws.onopen=()=>{
+    document.getElementById('cd').classList.add('on');
+    document.getElementById('ct').textContent='OK';
+    document.getElementById('hint').classList.add('show');
+    setTimeout(()=>document.getElementById('hint').classList.remove('show'),1500);
+  };
+  ws.onclose=()=>{
+    document.getElementById('cd').classList.remove('on');
+    document.getElementById('ct').textContent='...';
+    setTimeout(connect,2000);
+  };
+}
+function send(){
+  if(!ws||ws.readyState!==1)return;
+  ws.send(JSON.stringify({type:'channels',ch}));
+}
+
+init();
+connect();
+
+let fsed=false;
+document.addEventListener('touchstart',()=>{if(!fsed){fsed=true;goFS()}},{once:true});
+document.addEventListener('touchmove',e=>{if(!e.target.closest('.modal'))e.preventDefault()},{passive:false});
 </script>
 </body>
 </html>
