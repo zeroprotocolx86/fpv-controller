@@ -11,8 +11,14 @@ import socket
 import json
 import threading
 import asyncio
+import urllib.request
+import subprocess
+import tempfile
 import traceback
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+CURRENT_VERSION = "1.3.1"
+REPO = "zeroprotocolx86/fpv-controller"
 
 try:
     import vgamepad as vg
@@ -103,6 +109,54 @@ def get_ip():
         return ip
     except:
         return "localhost"
+
+# ===== UPDATE =====
+def parse_version(v):
+    v = v.strip().lstrip("v")
+    parts = []
+    for p in v.split("."):
+        try:
+            parts.append(int(p))
+        except:
+            parts.append(0)
+    return parts
+
+def check_update():
+    try:
+        url = f"https://api.github.com/repos/{REPO}/releases/latest"
+        req = urllib.request.Request(url, headers={"User-Agent": "FPV-Controller"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+            tag = data.get("tag_name", "")
+            if parse_version(tag) > parse_version(CURRENT_VERSION):
+                for asset in data.get("assets", []):
+                    if asset["name"].endswith(".exe") and "Setup" in asset["name"]:
+                        return tag, asset["browser_download_url"]
+    except:
+        pass
+    return None, None
+
+def do_update(url, tag):
+    try:
+        tmp = os.path.join(tempfile.gettempdir(), "FPV-Controller-Setup.exe")
+        urllib.request.urlretrieve(url, tmp)
+        do_quit()
+        subprocess.Popen([tmp], shell=True)
+    except:
+        pass
+
+def check_and_update():
+    tag, url = check_update()
+    if tag and url and HAS_TRAY:
+        def on_update(icon, item):
+            threading.Thread(target=do_update, args=(url, tag), daemon=True).start()
+
+        def on_skip(icon, item):
+            pass
+
+        tray_icon.notify(f"Доступна версія {tag}", "FPV Controller")
+        return tag, url
+    return None, None
 
 # ===== GAMEPAD =====
 gamepad = None
@@ -218,34 +272,24 @@ def main():
     ip = get_ip()
     port = cfg["port"]
 
-    # Start servers
     threading.Thread(target=run_http, daemon=True).start()
     start_ws()
 
-    # Open browser
-    if cfg.get("auto_open", True):
-        time.sleep(1)
-        try:
-            import webbrowser
-            webbrowser.open(f"http://{ip}:{port}")
-        except:
-            pass
-
-    # System tray
     if HAS_TRAY:
+        update_tag = [None]
+        update_url = [None]
+
         def on_open(icon, item):
             import webbrowser
             webbrowser.open(f"http://{ip}:{port}")
 
         def on_info(icon, item):
             import webbrowser
-            webbrowser.open("https://github.com/zeroprotocolx86/fpv-controller")
+            webbrowser.open(f"https://github.com/{REPO}")
 
-        def on_ws_start(icon, item):
-            start_ws()
-
-        def on_ws_stop(icon, item):
-            pass
+        def on_update(icon, item):
+            if update_tag[0] and update_url[0]:
+                threading.Thread(target=do_update, args=(update_url[0], update_tag[0]), daemon=True).start()
 
         def on_restart(icon, item):
             do_quit()
@@ -253,14 +297,31 @@ def main():
         def on_quit(icon, item):
             do_quit()
 
-        menu = pystray.Menu(
-            pystray.MenuItem("Відкрити", on_open, default=True),
-            pystray.MenuItem("Інформація", on_info),
-            pystray.MenuItem("Перезапустити", on_restart),
-            pystray.MenuItem("Вийти", on_quit)
-        )
+        def build_menu():
+            items = [
+                pystray.MenuItem("Відкрити", on_open, default=True),
+                pystray.MenuItem("Інформація", on_info),
+                pystray.MenuItem("Перезапустити", on_restart),
+            ]
+            if update_tag[0]:
+                items.append(pystray.MenuItem(f"Оновити до {update_tag[0]}", on_update))
+            items.append(pystray.MenuItem("Вийти", on_quit))
+            return pystray.Menu(*items)
 
-        tray_icon = pystray.Icon("FPV", make_icon(), "FPV Controller", menu)
+        tray_icon = pystray.Icon("FPV", make_icon(), "FPV Controller", build_menu())
+
+        def check_update_thread():
+            tag, url = check_update()
+            if tag and url:
+                update_tag[0] = tag
+                update_url[0] = url
+                try:
+                    tray_icon.menu = build_menu()
+                    tray_icon.notify(f"Доступна версія {tag}", "FPV Controller")
+                except:
+                    pass
+
+        threading.Thread(target=check_update_thread, daemon=True).start()
         tray_icon.run()
     else:
         try:
