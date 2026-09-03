@@ -238,7 +238,8 @@ def main():
             webbrowser.open(f"http://{ip}:{port}")
 
         def on_info(icon, item):
-            pass
+            import webbrowser
+            webbrowser.open("https://github.com/zeroprotocolx86/fpv-controller")
 
         def on_ws_start(icon, item):
             start_ws()
