@@ -45,15 +45,14 @@ else:
     BASE = os.path.dirname(os.path.abspath(__file__))
     MEIPASS = BASE
 
-HTML_PATH = os.path.join(MEIPASS, "index.html")
-if not os.path.exists(HTML_PATH):
+HTML_PATH = None
+for d in [MEIPASS, BASE, os.path.dirname(BASE)]:
+    p = os.path.join(d, "index.html")
+    if os.path.isfile(p):
+        HTML_PATH = p
+        break
+if HTML_PATH is None:
     HTML_PATH = os.path.join(BASE, "index.html")
-if not os.path.exists(HTML_PATH):
-    for d in [os.path.dirname(BASE), BASE, MEIPASS]:
-        p = os.path.join(d, "index.html")
-        if os.path.exists(p):
-            HTML_PATH = p
-            break
 
 # ===== CONFIG =====
 def load_cfg():
@@ -214,6 +213,8 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*a, directory=d, **kw)
     def do_GET(self):
         if self.path == '/' or self.path == '':
+            self.path = '/index.html'
+        elif not '.' in self.path.split('/')[-1]:
             self.path = '/index.html'
         return super().do_GET()
     def log_message(self, *a):
