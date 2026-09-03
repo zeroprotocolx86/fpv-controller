@@ -1,6 +1,6 @@
-; FPV Controller — Inno Setup Script
+; FPV Controller
 #define MyAppName "FPV Controller"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "zeroprotocolx86"
 #define MyAppExeName "FPV-Controller.exe"
 
@@ -22,6 +22,8 @@ DisableProgramGroupPage=yes
 LicenseFile=LICENSE
 SetupIconFile=assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
@@ -32,28 +34,33 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "dist\FPV-Controller.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "launcher.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "install.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "fix-permissions.ps1"; DestDir: "{app}"; Flags: ignoreversion
-Source: "index.html"; DestDir: "{app}"; Flags: ignoreversion
-Source: "src\server.py"; DestDir: "{app}\src"; Flags: ignoreversion
-Source: "requirements.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Додати у винятки"; Filename: "{app}\install.bat"
-Name: "{group}\{#MyAppName}"; Filename: "{app}\launcher.bat"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\launcher.bat"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\install.bat"; Description: "Додати у винятки безпеки (потрібні права адміністратора)"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Запустити {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function InitializeSetup: Boolean;
+var
+  ResultCode: Integer;
+  OldPath: String;
+begin
+  Result := True;
+  OldPath := ExpandConstant('{localappdata}\FPV Controller\FPV-Controller.exe');
+  if FileExists(OldPath) then
+  begin
+    Exec(OldPath, '--quit', '', 0, ewWaitUntilTerminated, ResultCode);
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
-    // Create config.json with default settings
     SaveStringToFile(ExpandConstant('{app}\config.json'),
       '{' + #13#10 +
       '  "port": 8766,' + #13#10 +

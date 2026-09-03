@@ -6,6 +6,7 @@ All-in-one: HTTP + WebSocket + Gamepad + System Tray
 import os
 import sys
 import time
+import signal
 import socket
 import json
 import threading
@@ -54,6 +55,39 @@ def load_cfg():
         return {"port": 8766, "ws_port": 8765, "auto_open": True}
 
 cfg = load_cfg()
+
+# ===== LOCK FILE =====
+LOCK_FILE = os.path.join(BASE, ".fpv.lock")
+
+def write_lock():
+    try:
+        with open(LOCK_FILE, "w") as f:
+            f.write(str(os.getpid()))
+    except:
+        pass
+
+def read_lock():
+    try:
+        with open(LOCK_FILE) as f:
+            return int(f.read().strip())
+    except:
+        return None
+
+def remove_lock():
+    try:
+        os.remove(LOCK_FILE)
+    except:
+        pass
+
+def kill_previous():
+    pid = read_lock()
+    if pid and pid != os.getpid():
+        try:
+            os.kill(pid, signal.SIGTERM)
+            time.sleep(0.5)
+        except:
+            pass
+    write_lock()
 
 # ===== IP =====
 def get_ip():
@@ -145,16 +179,36 @@ def make_icon(color="#3fb950"):
     d.polygon([(24, 20), (44, 32), (24, 44)], fill=color)
     return img
 
+# ===== QUIT =====
+tray_icon = None
+
+def do_quit():
+    remove_lock()
+    if tray_icon:
+        try:
+            tray_icon.stop()
+        except:
+            pass
+    os._exit(0)
+
 # ===== MAIN =====
 def main():
+    global tray_icon
+
+    if "--quit" in sys.argv:
+        pid = read_lock()
+        if pid:
+            try:
+                os.kill(pid, signal.SIGTERM)
+                time.sleep(0.3)
+            except:
+                pass
+        remove_lock()
+        return
+
+    kill_previous()
     ip = get_ip()
     port = cfg["port"]
-
-    print("")
-    print("  FPV Controller")
-    print(f"  Phone: http://{ip}:{port}")
-    print(f"  Gamepad: {'OK' if gamepad else 'NO'}")
-    print("")
 
     # Start servers
     threading.Thread(target=run_http, daemon=True).start()
@@ -175,18 +229,31 @@ def main():
             import webbrowser
             webbrowser.open(f"http://{ip}:{port}")
 
+        def on_info(icon, item):
+            pass
+
+        def on_ws_start(icon, item):
+            start_ws()
+
+        def on_ws_stop(icon, item):
+            pass
+
+        def on_restart(icon, item):
+            do_quit()
+
         def on_quit(icon, item):
-            icon.stop()
+            do_quit()
 
         menu = pystray.Menu(
-            pystray.MenuItem("Open", on_open, default=True),
-            pystray.MenuItem("Quit", on_quit)
+            pystray.MenuItem("Відкрити", on_open, default=True),
+            pystray.MenuItem("Інформація", on_info),
+            pystray.MenuItem("Перезапустити", on_restart),
+            pystray.MenuItem("Вийти", on_quit)
         )
 
-        icon = pystray.Icon("FPV", make_icon(), "FPV Controller", menu)
-        icon.run()
+        tray_icon = pystray.Icon("FPV", make_icon(), "FPV Controller", menu)
+        tray_icon.run()
     else:
-        print("No tray - press Ctrl+C to stop")
         try:
             while True:
                 time.sleep(1)
@@ -198,4 +265,3 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         traceback.print_exc()
-        input("Press Enter...")
