@@ -34,12 +34,16 @@ except ImportError:
 # ===== PATHS =====
 if getattr(sys, 'frozen', False):
     BASE = os.path.dirname(sys.executable)
+    MEIPASS = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
 else:
     BASE = os.path.dirname(os.path.abspath(__file__))
+    MEIPASS = BASE
 
-HTML_PATH = os.path.join(BASE, "index.html")
+HTML_PATH = os.path.join(MEIPASS, "index.html")
 if not os.path.exists(HTML_PATH):
-    for d in [os.path.dirname(BASE), BASE]:
+    HTML_PATH = os.path.join(BASE, "index.html")
+if not os.path.exists(HTML_PATH):
+    for d in [os.path.dirname(BASE), BASE, MEIPASS]:
         p = os.path.join(d, "index.html")
         if os.path.exists(p):
             HTML_PATH = p
@@ -52,7 +56,7 @@ def load_cfg():
         with open(p) as f:
             return json.load(f)
     except:
-        return {"port": 8766, "ws_port": 8765, "auto_open": True}
+        return {"port": 8766, "ws_port": 8765, "auto_open": False}
 
 cfg = load_cfg()
 
@@ -158,6 +162,10 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         d = os.path.dirname(HTML_PATH) if os.path.exists(HTML_PATH) else BASE
         super().__init__(*a, directory=d, **kw)
+    def do_GET(self):
+        if self.path == '/' or self.path == '':
+            self.path = '/index.html'
+        return super().do_GET()
     def log_message(self, *a):
         pass
 
