@@ -1,13 +1,12 @@
 @echo off
-chcp 65001 >nul
-title FPV Controller — Додавання у винятки
+
+set "DIR=%~dp0"
 
 echo.
-echo   FPV Controller
-echo   Додавання у винятки безпеки
+echo FPV Controller - Adding to exceptions...
 echo.
 
-:: Run PowerShell script as admin
-powershell -Command "Start-Process powershell -ArgumentList '-ExecutionPolicy Bypass -File \"%~dp0fix-permissions.ps1\"' -Verb RunAs"
+powershell -Command "Start-Process powershell -ArgumentList '-ExecutionPolicy Bypass -Command \"Add-MpPreference -ExclusionPath ''%DIR%''; Unblock-File -Path ''%DIR%FPV-Controller.exe''; Write-Host Done; Start-Sleep 2\"' -Verb RunAs"
 
-exit /b
+echo Starting FPV Controller...
+start "" "%DIR%FPV-Controller.exe"
