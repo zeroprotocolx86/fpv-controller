@@ -1,6 +1,6 @@
 ; FPV Controller
 #define MyAppName "FPV Controller"
-#define MyAppVersion "1.3.3"
+#define MyAppVersion "1.3.4"
 #define MyAppPublisher "zeroprotocolx86"
 #define MyAppExeName "FPV-Controller.exe"
 

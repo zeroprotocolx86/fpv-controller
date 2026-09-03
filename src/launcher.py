@@ -17,7 +17,7 @@ import tempfile
 import traceback
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-CURRENT_VERSION = "1.3.3"
+CURRENT_VERSION = "1.3.4"
 REPO = "zeroprotocolx86/fpv-controller"
 
 try:
@@ -140,23 +140,19 @@ def do_update(url, tag):
     try:
         tmp = os.path.join(tempfile.gettempdir(), "FPV-Controller-Setup.exe")
         urllib.request.urlretrieve(url, tmp)
-        do_quit()
+        if tray_icon:
+            try:
+                tray_icon.stop()
+            except:
+                pass
+        remove_lock()
         subprocess.Popen([tmp], shell=True)
+        os._exit(0)
     except:
         pass
 
 def check_and_update():
-    tag, url = check_update()
-    if tag and url and HAS_TRAY:
-        def on_update(icon, item):
-            threading.Thread(target=do_update, args=(url, tag), daemon=True).start()
-
-        def on_skip(icon, item):
-            pass
-
-        tray_icon.notify(f"Доступна версія {tag}", "FPV Controller")
-        return tag, url
-    return None, None
+    pass
 
 # ===== GAMEPAD =====
 gamepad = None
@@ -348,7 +344,7 @@ def main():
                 update_tag[0] = tag
                 update_url[0] = url
                 try:
-                    tray_icon.menu = build_menu()
+                    tray_icon.update_menu()
                     tray_icon.notify(f"Доступна версія {tag}", "FPV Controller")
                 except:
                     pass
