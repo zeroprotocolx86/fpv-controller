@@ -88,15 +88,21 @@ input[type=range]{width:110px;accent-color:#58a6ff}
 
 <div class="modal" id="cfg">
   <button class="x" onclick="closeCfg()">✕</button>
-  <h2>Налаштування</h2>
-  <div class="rw"><label>Expo</label><span class="vv" id="eV">0.30</span></div>
-  <input type="range" id="eR" min="0" max="1" step="0.05" value="0.30">
-  <div class="rw"><label>Rate</label><span class="vv" id="rV">1.50</span></div>
-  <input type="range" id="rR" min="0.3" max="2" step="0.05" value="1.50">
+  <h2>Лівий стік (THR·YAW)</h2>
+  <div class="rw"><label>Expo</label><span class="vv" id="eV">0.50</span></div>
+  <input type="range" id="eR" min="0" max="1" step="0.05" value="0.50">
+  <div class="rw"><label>Rate</label><span class="vv" id="rV">1.00</span></div>
+  <input type="range" id="rR" min="0.3" max="2" step="0.05" value="1.00">
+  <h2 style="margin-top:16px">Правий стік (PIT·ROL)</h2>
+  <div class="rw"><label>Expo</label><span class="vv" id="reV">0.30</span></div>
+  <input type="range" id="reR" min="0" max="1" step="0.05" value="0.30">
+  <div class="rw"><label>Rate</label><span class="vv" id="rrV">1.50</span></div>
+  <input type="range" id="rrR" min="0.3" max="2" step="0.05" value="1.50">
+  <h2 style="margin-top:16px">Загальне</h2>
   <div class="rw"><label>Deadband</label><span class="vv" id="dV">2%</span></div>
   <input type="range" id="dR" min="0" max="15" step="1" value="2">
-  <div class="rw"><label>Smoothing</label><span class="vv" id="sV">1</span></div>
-  <input type="range" id="sR" min="0" max="10" step="1" value="1">
+  <div class="rw"><label>Smoothing</label><span class="vv" id="sV">2</span></div>
+  <input type="range" id="sR" min="0" max="10" step="1" value="2">
   <h2 style="margin-top:16px">Режим</h2>
   <div class="mbtns">
     <button id="m2" class="a" onclick="setM(2)">Mode 2</button>
@@ -107,7 +113,7 @@ input[type=range]{width:110px;accent-color:#58a6ff}
 <div class="hint" id="hint">Тримай пальці на джойстиках</div>
 
 <script>
-const C={expo:.3,rate:1.5,dead:2,smooth:1,mode:2};
+const C={expo:.5,rate:1.0,dead:2,smooth:2,rexpo:.3,rrate:1.5,mode:2};
 const ch=[1500,1500,1500,1500];
 let ws;
 const WS_URL='ws://'+location.hostname+':8765';
@@ -120,17 +126,20 @@ function setM(m){C.mode=m;document.getElementById('m2').className=m===2?'a':'';d
 
 document.getElementById('eR').oninput=function(){C.expo=+this.value;document.getElementById('eV').textContent=C.expo.toFixed(2)};
 document.getElementById('rR').oninput=function(){C.rate=+this.value;document.getElementById('rV').textContent=C.rate.toFixed(2)};
+document.getElementById('reR').oninput=function(){C.rexpo=+this.value;document.getElementById('reV').textContent=C.rexpo.toFixed(2)};
+document.getElementById('rrR').oninput=function(){C.rrate=+this.value;document.getElementById('rrV').textContent=C.rrate.toFixed(2)};
 document.getElementById('dR').oninput=function(){C.dead=+this.value;document.getElementById('dV').textContent=C.dead+'%'};
 document.getElementById('sR').oninput=function(){C.smooth=+this.value;document.getElementById('sV').textContent=C.smooth};
 
 class Stick{
-  constructor(boxId,knobId,chX,chY,invY,springY){
+  constructor(boxId,knobId,chX,chY,invY,springY,isRight){
     this.box=document.getElementById(boxId);
     this.knob=document.getElementById(knobId);
     this.chX=chX;
     this.chY=chY;
     this.invY=invY||false;
     this.springY=springY!==false;
+    this.isRight=isRight||false;
     this.rawX=0;
     this.rawY=0;
     this.smX=0;
@@ -209,10 +218,11 @@ class Stick{
   _send(){
     let x=this.rawX;
     let y=this.rawY;
-    const e=C.expo;
+    const e=this.isRight?C.rexpo:C.expo;
+    const r=this.isRight?C.rrate:C.rate;
     if(x!==0)x=Math.sign(x)*(Math.abs(x)+e*Math.abs(x)*(1-Math.abs(x)*Math.abs(x)));
     if(y!==0)y=Math.sign(y)*(Math.abs(y)+e*Math.abs(y)*(1-Math.abs(y)*Math.abs(y)));
-    x*=C.rate;y*=C.rate;
+    x*=r;y*=r;
     x=Math.max(-1,Math.min(1,x));
     y=Math.max(-1,Math.min(1,y));
     const d=C.dead/100;
@@ -235,11 +245,11 @@ function init(){
   const m=localStorage.getItem('fpv_m');
   if(m)C.mode=+m;
   if(C.mode===2){
-    sL=new Stick('boxL','kL',0,1,false,false);
-    sR=new Stick('boxR','kR',3,2,false);
+    sL=new Stick('boxL','kL',0,1,false,false,false);
+    sR=new Stick('boxR','kR',3,2,false,true,true);
   }else{
-    sL=new Stick('boxL','kL',3,2,false);
-    sR=new Stick('boxR','kR',0,1,false,false);
+    sL=new Stick('boxL','kL',3,2,false,false,false);
+    sR=new Stick('boxR','kR',0,1,false,false,true);
   }
 }
 
