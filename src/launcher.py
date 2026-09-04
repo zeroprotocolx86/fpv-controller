@@ -17,7 +17,7 @@ import tempfile
 import traceback
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-CURRENT_VERSION = "1.3.6"
+CURRENT_VERSION = "1.3.7"
 REPO = "zeroprotocolx86/fpv-controller"
 
 try:
@@ -174,8 +174,8 @@ def update_gamepad(ch):
             y_value=int(-m(ch[1]) * 32767)
         )
         gamepad.right_joystick(
-            x_value=int(m(ch[2]) * 32767),
-            y_value=int(-m(ch[3]) * 32767)
+            x_value=int(m(ch[3]) * 32767),
+            y_value=int(-m(ch[2]) * 32767)
         )
         gamepad.update()
     except:
