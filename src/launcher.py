@@ -17,7 +17,7 @@ import tempfile
 import traceback
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-CURRENT_VERSION = "1.3.8"
+CURRENT_VERSION = "1.3.9"
 REPO = "zeroprotocolx86/fpv-controller"
 
 try:

@@ -1,6 +1,6 @@
 ; FPV Controller
 #define MyAppName "FPV Controller"
-#define MyAppVersion "1.3.8"
+#define MyAppVersion "1.3.9"
 #define MyAppPublisher "zeroprotocolx86"
 #define MyAppExeName "FPV-Controller.exe"
 
@@ -34,10 +34,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "dist\FPV-Controller.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\FPV-Uninstall.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Видалити {#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--uninstall"
+Name: "{group}\Видалити {#MyAppName}"; Filename: "{app}\FPV-Uninstall.exe"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
