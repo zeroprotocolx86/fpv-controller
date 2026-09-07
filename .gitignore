@@ -2,6 +2,7 @@ build/
 build2/
 dist/
 dist2/
+installer/
 *.spec
 src/.fpv.lock
 __pycache__/

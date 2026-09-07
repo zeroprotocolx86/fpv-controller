@@ -17,7 +17,7 @@ import tempfile
 import traceback
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-CURRENT_VERSION = "1.3.9"
+CURRENT_VERSION = "1.4.0"
 REPO = "zeroprotocolx86/fpv-controller"
 
 try:
@@ -36,6 +36,12 @@ try:
     HAS_TRAY = True
 except ImportError:
     HAS_TRAY = False
+
+try:
+    import qrcode
+    HAS_QR = True
+except ImportError:
+    HAS_QR = False
 
 # ===== PATHS =====
 if getattr(sys, 'frozen', False):
@@ -150,9 +156,6 @@ def do_update(url, tag):
     except:
         pass
 
-def check_and_update():
-    pass
-
 # ===== GAMEPAD =====
 gamepad = None
 if vg:
@@ -238,6 +241,15 @@ def make_icon(color="#3fb950"):
     d.polygon([(24, 20), (44, 32), (24, 44)], fill=color)
     return img
 
+def make_qr_icon(url):
+    if not HAS_QR or not HAS_TRAY:
+        return None
+    qr = qrcode.QRCode(version=1, box_size=6, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="white", back_color="#0d1117")
+    return img
+
 # ===== QUIT =====
 tray_icon = None
 
@@ -251,27 +263,17 @@ def do_quit():
     os._exit(0)
 
 def do_uninstall():
-    import shutil
-    remove_lock()
     if tray_icon:
         try:
             tray_icon.stop()
         except:
             pass
-    install_dir = BASE
-    try:
-        for f in ["FPV-Controller.exe", "config.json", ".fpv.lock", "unins000.exe", "unins000.dat"]:
-            p = os.path.join(install_dir, f)
-            if os.path.exists(p):
-                os.remove(p)
-    except:
-        pass
-    try:
-        uninstaller = os.path.join(install_dir, "unins000.exe")
-        if os.path.exists(uninstaller):
-            subprocess.Popen([uninstaller, "/SILENT"])
-    except:
-        pass
+    remove_lock()
+    uninstaller = os.path.join(BASE, "FPV-Uninstall.exe")
+    if os.path.exists(uninstaller):
+        subprocess.Popen([uninstaller])
+    else:
+        subprocess.Popen([sys.executable, os.path.join(BASE, "uninstall.py")])
     os._exit(0)
 
 # ===== MAIN =====
@@ -287,10 +289,6 @@ def main():
             except:
                 pass
         remove_lock()
-        return
-
-    if "--uninstall" in sys.argv:
-        do_uninstall()
         return
 
     kill_previous()
@@ -312,6 +310,17 @@ def main():
             import webbrowser
             webbrowser.open(f"https://github.com/{REPO}")
 
+        def on_qr(icon, item):
+            import webbrowser
+            qr_url = f"http://{ip}:{port}"
+            qr_img = make_qr_icon(qr_url)
+            if qr_img:
+                tmp = os.path.join(tempfile.gettempdir(), "fpv_qr.png")
+                qr_img.save(tmp)
+                webbrowser.open(tmp)
+            else:
+                webbrowser.open(qr_url)
+
         def on_update(icon, item):
             if update_tag[0] and update_url[0]:
                 threading.Thread(target=do_update, args=(update_url[0], update_tag[0]), daemon=True).start()
@@ -328,6 +337,7 @@ def main():
         def build_menu():
             items = [
                 pystray.MenuItem("Відкрити", on_open, default=True),
+                pystray.MenuItem("QR-код", on_qr),
                 pystray.MenuItem("Інформація", on_info),
                 pystray.MenuItem("Перезапустити", on_restart),
                 pystray.MenuItem("Видалити", on_uninstall),

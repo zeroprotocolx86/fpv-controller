@@ -46,8 +46,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#e6edf
 input[type=range]{width:110px;accent-color:#58a6ff}
 .x{position:absolute;top:14px;right:14px;background:none;border:none;color:#8b949e;font-size:22px;padding:8px}
 .mbtns{display:flex;gap:8px;margin-top:10px}
-.mbtns button{flex:1;padding:10px;border-radius:8px;font-size:12px;border:1px solid #30363d;background:#161b22;color:#8b949e}
-.mbtns button.a{border-color:#3fb950;color:#3fb950;background:rgba(63,185,80,.1)}
+.mbtns button{flex:1;padding:10px;border-radius:8px;font-size:12px;border:1px solid #30363d;background:#161b22;color:#8b949e;cursor:pointer}
+.mbtns button.a{border-color:#58a6ff;color:#58a6ff;background:rgba(88,166,255,.1)}
 
 .hint{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;font-size:13px;color:#58a6ff;pointer-events:none;opacity:0;transition:opacity .5s;text-align:center}
 .hint.show{opacity:1}
@@ -69,13 +69,13 @@ input[type=range]{width:110px;accent-color:#58a6ff}
     <div class="base"></div><div class="cross h"></div><div class="cross v"></div>
     <div class="ring" style="inset:18%"></div><div class="ring" style="inset:36%"></div>
     <div class="knob" id="kR"></div>
-    <div class="ch-lbl">ROLL · PITCH</div>
+    <div class="ch-lbl" id="lblR">ROLL · PITCH</div>
   </div>
   <div class="stick-wrap" id="boxL">
     <div class="base"></div><div class="cross h"></div><div class="cross v"></div>
     <div class="ring" style="inset:18%"></div><div class="ring" style="inset:36%"></div>
     <div class="knob" id="kL"></div>
-    <div class="ch-lbl">THR · YAW</div>
+    <div class="ch-lbl" id="lblL">THR · YAW</div>
   </div>
 </div>
 
@@ -103,26 +103,31 @@ input[type=range]{width:110px;accent-color:#58a6ff}
   <input type="range" id="dR" min="0" max="15" step="1" value="2">
   <div class="rw"><label>Smoothing</label><span class="vv" id="sV">2</span></div>
   <input type="range" id="sR" min="0" max="10" step="1" value="2">
-  <h2 style="margin-top:16px">Режим</h2>
+  <h2 style="margin-top:16px">Стіки</h2>
   <div class="mbtns">
-    <button id="m2" class="a" onclick="setM(2)">Mode 2</button>
-    <button id="m1" onclick="setM(1)">Mode 1</button>
+    <button id="swapBtn" onclick="swapSticks()">🔄 Поміняти стіки</button>
   </div>
 </div>
 
 <div class="hint" id="hint">Тримай пальці на джойстиках</div>
 
 <script>
-const C={expo:.5,rate:1.0,dead:2,smooth:2,rexpo:.3,rrate:1.5,mode:2};
+const C={expo:.5,rate:1.0,dead:2,smooth:2,rexpo:.3,rrate:1.5,swapped:false};
 const ch=[1500,1500,1500,1500];
 let ws;
 const WS_URL='ws://'+location.hostname+':8765';
 
 function goFS(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen()}
-
 function openCfg(){document.getElementById('cfg').classList.add('show')}
 function closeCfg(){document.getElementById('cfg').classList.remove('show')}
-function setM(m){C.mode=m;document.getElementById('m2').className=m===2?'a':'';document.getElementById('m1').className=m===1?'a':'';localStorage.setItem('fpv_m',m)}
+
+function swapSticks(){
+  C.swapped=!C.swapped;
+  localStorage.setItem('fpv_swap',C.swapped?1:0);
+  document.getElementById('lblL').textContent=C.swapped?'ROLL · PITCH':'THR · YAW';
+  document.getElementById('lblR').textContent=C.swapped?'THR · YAW':'ROLL · PITCH';
+  init();
+}
 
 document.getElementById('eR').oninput=function(){C.expo=+this.value;document.getElementById('eV').textContent=C.expo.toFixed(2)};
 document.getElementById('rR').oninput=function(){C.rate=+this.value;document.getElementById('rV').textContent=C.rate.toFixed(2)};
@@ -242,14 +247,18 @@ class Stick{
 
 let sL,sR;
 function init(){
-  const m=localStorage.getItem('fpv_m');
-  if(m)C.mode=+m;
-  if(C.mode===2){
-    sL=new Stick('boxL','kL',0,1,false,false,false);
-    sR=new Stick('boxR','kR',3,2,false,true,true);
-  }else{
+  const sv=localStorage.getItem('fpv_swap');
+  if(sv==='1')C.swapped=true;
+  if(C.swapped){
     sL=new Stick('boxL','kL',3,2,false,false,false);
     sR=new Stick('boxR','kR',0,1,false,false,true);
+    document.getElementById('lblL').textContent='ROLL · PITCH';
+    document.getElementById('lblR').textContent='THR · YAW';
+  }else{
+    sL=new Stick('boxL','kL',0,1,false,false,false);
+    sR=new Stick('boxR','kR',3,2,false,true,true);
+    document.getElementById('lblL').textContent='THR · YAW';
+    document.getElementById('lblR').textContent='ROLL · PITCH';
   }
 }
 
